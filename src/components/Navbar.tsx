@@ -1,208 +1,175 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import api from '../api/axios';
-import type { Flat } from '../types/Flat';
-
-import {
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Box,
-  Container,
-  Typography,
-  Divider,
-  TextField,
-  Button,
-} from '@mui/material';
-
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import theme from '../styles/theme';
-import { io } from 'socket.io-client';
 
-type Message = {
-  _id: string;
-  content: string;
-  createdAt: string;
-  senderId: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
-  isRead: boolean;
-};
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import IconButton from '@mui/material/IconButton';
+import MenuIcon from '@mui/icons-material/Menu';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Drawer from '@mui/material/Drawer';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import Box from '@mui/material/Box';
+import Badge from '@mui/material/Badge';
+import MailIcon from '@mui/icons-material/Mail';
 
-const socket = io('http://localhost:5000');
+const Navbar = () => {
+  const { user, setUser, unreadCount } = useUser();
+  const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-const InboxPage = () => {
-  const { user, setUnreadCount } = useUser();
-  const [flats, setFlats] = useState<Flat[]>([]);
-  const [messagesByFlat, setMessagesByFlat] = useState<Record<string, Message[]>>({});
-  const [replyByFlat, setReplyByFlat] = useState<Record<string, string>>({});
-  const [pageByFlat, setPageByFlat] = useState<Record<string, number>>({});
-  const token = localStorage.getItem('token');
-
-  useEffect(() => {
-    const fetchFlatsAndMessages = async () => {
-      const res = await api.get('/flats');
-      const userFlats = user?.isAdmin
-        ? res.data
-        : res.data.filter((f: Flat) => f.ownerId._id === user?._id);
-      setFlats(userFlats);
-
-      for (const flat of userFlats) {
-        await loadMessages(flat._id, 1);
-      }
-    };
-
-    fetchFlatsAndMessages();
-
-    socket.on('nova-mensagem', (data) => {
-      if (data && flats.find(f => f._id === data.flatId)) {
-        loadMessages(data.flatId, 1, true); // refresh page 1
-      }
-    });
-
-    return () => {
-      socket.off('nova-mensagem');
-    };
-  }, [user]);
-
-  const loadMessages = async (flatId: string, page: number, reset = false) => {
-    const res = await api.get(`/flats/${flatId}/messages?page=${page}&limit=5`);
-    const newMessages = res.data;
-
-    setMessagesByFlat((prev) => ({
-      ...prev,
-      [flatId]: reset ? newMessages : [...(prev[flatId] || []), ...newMessages],
-    }));
-
-    setPageByFlat((prev) => ({
-      ...prev,
-      [flatId]: page,
-    }));
-
-    // Atualizar número de mensagens não lidas no badge da Navbar
-    const allUnread = Object.values(messagesByFlat)
-      .flat()
-      .filter((m) => !m.isRead).length;
-    setUnreadCount(allUnread);
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    navigate('/login');
   };
 
-  const handleReplyChange = (flatId: string, text: string) => {
-    setReplyByFlat((prev) => ({ ...prev, [flatId]: text }));
+  const toggleDrawer = (open: boolean) => () => {
+    setDrawerOpen(open);
   };
 
-  const handleSendReply = async (flatId: string) => {
-    const msg = replyByFlat[flatId]?.trim();
-    if (!msg) return;
+  const commonLinks = [
+    { label: 'Home', to: '/' },
+    { label: 'Flats', to: '/flats' },
+  ];
 
-    await api.post(`/flats/${flatId}/messages`, { content: msg }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  const loggedOutLinks = [
+    { label: 'Login', to: '/login' },
+    { label: 'Register', to: '/register' },
+  ];
 
-    setReplyByFlat((prev) => ({ ...prev, [flatId]: '' }));
-    loadMessages(flatId, 1, true); // recarrega
-  };
+  const loggedInLinks = [
+    { label: 'Profile', to: '/profile' },
+    { label: 'Adicionar Flat', to: '/add-flat' },
+    { label: '❤️ Favoritos', to: '/favorites' },
+    {
+      label: (
+        <Badge badgeContent={unreadCount} color="secondary">
+          <MailIcon sx={{ marginRight: 1 }} />
+          Inbox
+        </Badge>
+      ),
+      to: '/inbox',
+    },
+  ];
 
-  const handleLoadMore = (flatId: string) => {
-    const nextPage = (pageByFlat[flatId] || 1) + 1;
-    loadMessages(flatId, nextPage);
-  };
+  if (user?.isAdmin) {
+    loggedInLinks.push({ label: 'Admin Panel', to: '/admin' });
+  }
 
-  const markAsRead = async (flatId: string) => {
-    await api.patch(`/flats/${flatId}/messages/read`);
-    loadMessages(flatId, 1, true);
-  };
+  const renderLinks = () =>
+    [...commonLinks, ...(user ? loggedInLinks : loggedOutLinks)].map((link) =>
+      typeof link.label === 'string' ? (
+        <Button
+          key={link.to}
+          color="inherit"
+          component={Link}
+          to={link.to}
+          sx={{
+            textTransform: 'none',
+            color: theme.colors.card,
+            fontWeight: 500,
+          }}
+        >
+          {link.label}
+        </Button>
+      ) : (
+        <Box key={link.to}>{/* placeholder, handled in mobile drawer */}</Box>
+      )
+    );
 
   return (
-    <Container maxWidth="md" sx={{ paddingY: 4 }}>
-      <Typography variant="h5" align="center" gutterBottom color={theme.colors.text}>
-        📬 Inbox de Mensagens
-      </Typography>
+    <>
+      <AppBar position="static" sx={{ backgroundColor: theme.colors.primary }}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontFamily: theme.font }}>
+            <Link to="/" style={{ textDecoration: 'none', color: theme.colors.card }}>
+              Scandic Flats
+            </Link>
+          </Typography>
 
-      {flats.length === 0 ? (
-        <Typography align="center" color={theme.colors.subtext} fontStyle="italic">
-          Não tens flats registados ou ainda não recebeste mensagens.
-        </Typography>
-      ) : (
-        flats.map((flat) => (
-          <Accordion
-            key={flat._id}
-            onChange={(_, expanded) => {
-              if (expanded) markAsRead(flat._id);
-            }}
-            sx={{ marginBottom: 2, background: theme.colors.card }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1" color={theme.colors.text}>
-                {flat.city} – {flat.streetName} {flat.streetNumber}
-              </Typography>
-            </AccordionSummary>
-
-            <AccordionDetails>
-              {messagesByFlat[flat._id]?.length > 0 ? (
-                <>
-                  {messagesByFlat[flat._id].map((msg) => (
-                    <Box
-                      key={msg._id}
-                      sx={{
-                        backgroundColor: msg.isRead ? '#f4f4f4' : '#d2eaf2',
-                        borderRadius: 2,
-                        padding: 2,
-                        marginBottom: 2,
-                      }}
-                    >
-                      <Typography sx={{ fontWeight: 'bold' }}>
-                        {msg.senderId.firstName} {msg.senderId.lastName} ({msg.senderId.email})
-                      </Typography>
-                      <Typography sx={{ marginTop: 1 }}>{msg.content}</Typography>
-                      <Typography variant="caption" color={theme.colors.subtext} sx={{ marginTop: 1 }}>
-                        {new Date(msg.createdAt).toLocaleString()}
-                      </Typography>
-                    </Box>
-                  ))}
-
-                  <Button
-                    variant="outlined"
-                    onClick={() => handleLoadMore(flat._id)}
-                    sx={{ marginY: 1 }}
-                  >
-                    Ver mais
-                  </Button>
-                </>
-              ) : (
-                <Typography color={theme.colors.subtext} fontStyle="italic">
-                  Nenhuma mensagem para este flat.
-                </Typography>
-              )}
-
-              <Divider sx={{ marginY: 2 }} />
-
-              <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
-                <TextField
-                  label="Responder mensagem"
-                  multiline
-                  minRows={2}
-                  fullWidth
-                  value={replyByFlat[flat._id] || ''}
-                  onChange={(e) => handleReplyChange(flat._id, e.target.value)}
-                />
-                <Button
-                  variant="contained"
-                  color="primary"
-                  sx={{ alignSelf: 'flex-end' }}
-                  onClick={() => handleSendReply(flat._id)}
-                  disabled={!replyByFlat[flat._id]?.trim()}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2 }}>
+            {renderLinks()}
+            {user && (
+              <>
+                <Typography
+                  variant="body2"
+                  sx={{ color: theme.colors.secondary, alignSelf: 'center' }}
                 >
-                  Enviar
+                  Olá, {user.firstName}
+                </Typography>
+                <Button
+                  onClick={handleLogout}
+                  sx={{
+                    border: `1px solid ${theme.colors.card}`,
+                    color: theme.colors.card,
+                    ml: 1,
+                    textTransform: 'none',
+                  }}
+                >
+                  Logout
                 </Button>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-        ))
-      )}
-    </Container>
+              </>
+            )}
+          </Box>
+
+          <IconButton
+            edge="end"
+            color="inherit"
+            onClick={toggleDrawer(true)}
+            sx={{ display: { xs: 'flex', md: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+
+      <Drawer anchor="right" open={drawerOpen} onClose={toggleDrawer(false)}>
+        <Box
+          sx={{ width: 250 }}
+          role="presentation"
+          onClick={toggleDrawer(false)}
+          onKeyDown={toggleDrawer(false)}
+        >
+          <List>
+            {[...commonLinks, ...(user ? loggedInLinks : loggedOutLinks)].map((item) =>
+              typeof item.label === 'string' ? (
+                <ListItem key={item.to} disablePadding>
+                  <ListItemButton component={Link} to={item.to}>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
+              ) : (
+                <ListItem key={item.to} disablePadding>
+                  <ListItemButton component={Link} to={item.to}>
+                    {item.label}
+                  </ListItemButton>
+                </ListItem>
+              )
+            )}
+            {user && (
+              <>
+                <ListItem>
+                  <ListItemText primary={`Olá, ${user.firstName}`} />
+                </ListItem>
+                <ListItem disablePadding>
+                  <ListItemButton onClick={handleLogout}>
+                    <ListItemText primary="Logout" />
+                  </ListItemButton>
+                </ListItem>
+              </>
+            )}
+          </List>
+        </Box>
+      </Drawer>
+    </>
   );
 };
 
-export default InboxPage;
+export default Navbar;
