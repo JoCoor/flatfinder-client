@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useUser } from '../context/UserContext';
 import api from '../api/axios';
 import type { Flat } from '../types/Flat';
-
 import {
   Accordion,
   AccordionSummary,
@@ -14,7 +13,6 @@ import {
   TextField,
   Button,
 } from '@mui/material';
-
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import theme from '../styles/theme';
 import { io } from 'socket.io-client';
@@ -34,7 +32,7 @@ type Message = {
 const socket = io('http://localhost:5000');
 
 const InboxPage = () => {
-  const { user, setUnreadCount } = useUser();
+  const { user } = useUser();
   const [flats, setFlats] = useState<Flat[]>([]);
   const [messagesByFlat, setMessagesByFlat] = useState<Record<string, Message[]>>({});
   const [replyByFlat, setReplyByFlat] = useState<Record<string, string>>({});
@@ -80,12 +78,6 @@ const InboxPage = () => {
       ...prev,
       [flatId]: page,
     }));
-
-    // Atualizar número de mensagens não lidas no badge da Navbar
-    const allUnread = Object.values(messagesByFlat)
-      .flat()
-      .filter((m) => !m.isRead).length;
-    setUnreadCount(allUnread);
   };
 
   const handleReplyChange = (flatId: string, text: string) => {
@@ -111,7 +103,6 @@ const InboxPage = () => {
 
   const markAsRead = async (flatId: string) => {
     await api.patch(`/flats/${flatId}/messages/read`);
-    loadMessages(flatId, 1, true);
   };
 
   return (

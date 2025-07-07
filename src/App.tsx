@@ -11,6 +11,8 @@ import PrivateRoute from './components/PrivateRoute';
 import AddFlatPage from './pages/AddFlatPage';
 import EditFlatPage from './pages/EditFlatPage';
 import FavoritesPage from './pages/FavoritesPage';
+import InboxPage from './pages/InboxPage';
+
 
 
 
@@ -24,6 +26,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/flats" element={<FlatsPage />} />
         <Route path="/flats/:id" element={<FlatDetailsPage />} />
+        <Route path="/inbox" element={<InboxPage />} />
+
 
         {/* Rotas protegidas */}
         <Route
@@ -50,6 +54,7 @@ function App() {
             </PrivateRoute>
           }
         />
+        
         <Route
           path="/flats/:id/edit"
           element={

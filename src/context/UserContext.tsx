@@ -1,43 +1,61 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
 
-interface User {
-  id: string;
+type User = {
+  _id: string;
   email: string;
   firstName: string;
   lastName: string;
   isAdmin: boolean;
-}
+};
 
-interface UserContextType {
+type UserContextType = {
   user: User | null;
   setUser: (user: User | null) => void;
-}
+  unreadCount: number;
+  setUnreadCount: (count: number) => void;
+};
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+const defaultContext: UserContextType = {
+  user: null,
+  setUser: () => {},
+  unreadCount: 0,
+  setUnreadCount: () => {},
+};
+
+export const UserContext = createContext<UserContextType>(defaultContext);
+
+const socket = io('http://localhost:5000');
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
+    if (user) {
+      socket.emit('join-user', user._id);
+
+      socket.on('nova-mensagem', (data) => {
+        if (data?.flatId && data?.senderId !== user._id) {
+          setUnreadCount((prev) => prev + 1);
+        }
+      });
     }
-  }, []);
+
+    return () => {
+      socket.off('nova-mensagem');
+    };
+  }, [user]);
 
   return (
-    <UserContext.Provider value={{ user, setUser }}>
+    <UserContext.Provider value={{ user, setUser, unreadCount, setUnreadCount }}>
       {children}
     </UserContext.Provider>
   );
 };
 
-export const useUser = () => {
-  const context = useContext(UserContext);
-  if (!context) throw new Error('useUser must be used within a UserProvider');
-  return context;
-};
+export const useUser = () => useContext(UserContext);

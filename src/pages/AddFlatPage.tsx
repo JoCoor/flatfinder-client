@@ -1,6 +1,17 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import {
+  Container,
+  Typography,
+  TextField,
+  Checkbox,
+  FormControlLabel,
+  Button,
+  Divider,
+  Box,
+} from '@mui/material';
+import axios from 'axios';
+import theme from '../styles/theme';
 
 const AddFlatPage = () => {
   const navigate = useNavigate();
@@ -16,7 +27,6 @@ const AddFlatPage = () => {
     photos: [] as string[],
   });
 
-  // Upload da imagem para o Cloudinary
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -30,8 +40,6 @@ const AddFlatPage = () => {
       });
 
       const imageUrl = res.data.imageUrl;
-
-      // Adiciona a imagem ao array de photos
       setFormData((prev) => ({
         ...prev,
         photos: [...prev.photos, imageUrl],
@@ -42,7 +50,6 @@ const AddFlatPage = () => {
     }
   };
 
-  // Atualiza os campos do formulário
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -51,20 +58,14 @@ const AddFlatPage = () => {
     }));
   };
 
-  // Envia os dados para o backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
 
-    console.log('A enviar flat:', formData);
-
     try {
       await axios.post('http://localhost:5000/flats', formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       alert('Flat criado com sucesso!');
       navigate('/flats');
     } catch (err) {
@@ -74,35 +75,59 @@ const AddFlatPage = () => {
   };
 
   return (
-    <div>
-      <h2>Adicionar Novo Apartamento</h2>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', maxWidth: 300 }}>
-        <input type="text" name="city" placeholder="Cidade" value={formData.city} onChange={handleChange} required />
-        <input type="text" name="streetName" placeholder="Rua" value={formData.streetName} onChange={handleChange} required />
-        <input type="text" name="streetNumber" placeholder="Número da Porta" value={formData.streetNumber} onChange={handleChange} required />
-        <input type="number" name="areaSize" placeholder="Área (m²)" value={formData.areaSize} onChange={handleChange} required />
-        <label>
-          <input type="checkbox" name="hasAc" checked={formData.hasAc} onChange={handleChange} />
-          Tem Ar Condicionado?
-        </label>
-        <input type="number" name="yearBuilt" placeholder="Ano de Construção" value={formData.yearBuilt} onChange={handleChange} required />
-        <input type="number" name="rentPrice" placeholder="Preço da Renda (€)" value={formData.rentPrice} onChange={handleChange} required />
-        <input type="date" name="dateAvailable" placeholder="Data Disponível" value={formData.dateAvailable} onChange={handleChange} required />
+    <Container maxWidth="sm" sx={{ py: 4 }}>
+      <Typography variant="h5" align="center" gutterBottom sx={{ color: theme.colors.text }}>
+        🏠 Adicionar Novo Apartamento
+      </Typography>
 
-        <hr />
-        <h4>Fotos</h4>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          background: theme.colors.card,
+          padding: 3,
+          borderRadius: theme.radius,
+          boxShadow: theme.shadow,
+        }}
+      >
+        <TextField label="Cidade" name="city" required value={formData.city} onChange={handleChange} />
+        <TextField label="Rua" name="streetName" required value={formData.streetName} onChange={handleChange} />
+        <TextField label="Número" name="streetNumber" required value={formData.streetNumber} onChange={handleChange} />
+        <TextField label="Área (m²)" name="areaSize" type="number" required value={formData.areaSize} onChange={handleChange} />
+        <FormControlLabel
+          control={<Checkbox name="hasAc" checked={formData.hasAc} onChange={handleChange} />}
+          label="Tem ar condicionado?"
+        />
+        <TextField label="Ano de construção" name="yearBuilt" type="number" required value={formData.yearBuilt} onChange={handleChange} />
+        <TextField label="Preço da Renda (€)" name="rentPrice" type="number" required value={formData.rentPrice} onChange={handleChange} />
+        <TextField
+          label="Disponível a partir de"
+          name="dateAvailable"
+          type="date"
+          required
+          value={formData.dateAvailable}
+          onChange={handleChange}
+          InputLabelProps={{ shrink: true }}
+        />
+
+        <Divider />
+
+        <Typography variant="subtitle1">Fotos</Typography>
         <input type="file" accept="image/*" onChange={handleImageUpload} />
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {formData.photos.map((url, index) => (
-            <li key={index} style={{ marginBottom: 10 }}>
-              <img src={url} alt={`Foto ${index + 1}`} width={100} style={{ borderRadius: 8 }} />
-            </li>
+        <Box display="flex" flexWrap="wrap" gap={2}>
+          {formData.photos.map((url, idx) => (
+            <img key={idx} src={url} alt={`Foto ${idx + 1}`} width={100} style={{ borderRadius: 8 }} />
           ))}
-        </ul>
+        </Box>
 
-        <button type="submit" style={{ marginTop: '10px' }}>Criar</button>
-      </form>
-    </div>
+        <Button type="submit" variant="contained" color="primary">
+          Criar Apartamento
+        </Button>
+      </Box>
+    </Container>
   );
 };
 
