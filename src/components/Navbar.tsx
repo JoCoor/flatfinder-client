@@ -1,3 +1,5 @@
+
+console.log("🧭 Navbar renderizou");
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -58,6 +60,7 @@ const Navbar = () => {
       to: '/inbox',
     },
   ];
+console.log("🔐 Utilizador atual na Navbar:", user);
 
   if (user?.isAdmin) {
     loggedInLinks.push({ label: 'Admin Panel', to: '/admin' });

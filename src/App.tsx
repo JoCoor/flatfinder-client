@@ -12,11 +12,28 @@ import AddFlatPage from './pages/AddFlatPage';
 import EditFlatPage from './pages/EditFlatPage';
 import FavoritesPage from './pages/FavoritesPage';
 import InboxPage from './pages/InboxPage';
+import { useEffect } from 'react';
+import { useUser } from './context/UserContext';
 
 
 
 
 function App() {
+  const { setUser } = useUser();
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        console.log('🔁 Restaurando utilizador via App.tsx:', parsed);
+        setUser(parsed);
+      } catch (err) {
+        console.error('❌ Erro ao parsear user do localStorage:', err);
+      }
+    }
+  }, []);
+  
   return (
     <>
       <Navbar />
@@ -54,7 +71,7 @@ function App() {
             </PrivateRoute>
           }
         />
-        
+
         <Route
           path="/flats/:id/edit"
           element={
@@ -65,12 +82,14 @@ function App() {
         />
         <Route
           path="/admin"
-          element={
-            <PrivateRoute>
+          element={<>{console.log("⚙️ Rota /admin iniciada")}
+            <PrivateRoute requireAdmin={true}>
               <AdminPage />
             </PrivateRoute>
+            </>
           }
         />
+
       </Routes>
     </>
   );

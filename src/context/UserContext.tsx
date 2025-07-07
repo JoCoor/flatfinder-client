@@ -28,15 +28,31 @@ export const UserContext = createContext<UserContextType>(defaultContext);
 const socket = io('http://localhost:5000');
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
-
+  const [user, setUser] = useState<User | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  // Restaurar sessão do localStorage ao iniciar
+  useEffect(() => {
+  const storedUser = localStorage.getItem('user');
+  const storedToken = localStorage.getItem('token');
+  console.log('🧪 Verificando localStorage:', { storedUser, storedToken });
+
+  if (storedUser && storedToken) {
+    try {
+      const parsedUser = JSON.parse(storedUser);
+      console.log('✅ Sessão restaurada com user:', parsedUser);
+      setUser(parsedUser);
+    } catch (err) {
+      console.error('❌ Erro ao restaurar user do localStorage:', err);
+    }
+  } else {
+    console.warn('⚠️ Sem user/token no localStorage');
+  }
+}, []);
 
   useEffect(() => {
     if (user) {
+      console.log('🧠 Conectando WebSocket como usuário:', user._id);
       socket.emit('join-user', user._id);
 
       socket.on('nova-mensagem', (data) => {
