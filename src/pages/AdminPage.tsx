@@ -23,6 +23,8 @@ import {
   TextField,
   InputLabel,
   FormControl,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import theme from '../styles/theme';
 import { Link } from 'react-router-dom';
@@ -58,12 +60,11 @@ const AdminPage = () => {
   const [userTypeFilter, setUserTypeFilter] = useState('all');
   const [cityFilter, setCityFilter] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('');
+  const [emailFilter, setEmailFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
-  const [emailFilter, setEmailFilter] = useState('');
-
 
   const token = localStorage.getItem('token');
 
@@ -112,7 +113,6 @@ const AdminPage = () => {
     });
     setFilteredFlats(flatsFiltered);
   }, [cityFilter, ownerFilter, emailFilter, flats]);
-
 
   const handleDeleteUser = async (id: string) => {
     if (!confirm('Tens a certeza que queres apagar este utilizador?')) return;
@@ -256,7 +256,6 @@ const AdminPage = () => {
               onChange={(e) => setEmailFilter(e.target.value)}
               size="small"
             />
-
           </Box>
 
           <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
@@ -273,7 +272,6 @@ const AdminPage = () => {
                   <TableCell sx={{ color: 'white' }}>Email</TableCell>
                   <TableCell sx={{ color: 'white' }} align="right">Ações</TableCell>
                 </TableRow>
-
               </TableHead>
               <TableBody>
                 {filteredFlats.map((flat) => (
@@ -306,7 +304,6 @@ const AdminPage = () => {
                       </Stack>
                     </TableCell>
                   </TableRow>
-
                 ))}
               </TableBody>
             </Table>
@@ -339,6 +336,15 @@ const AdminPage = () => {
             InputLabelProps={{ shrink: true }}
             value={editUser?.birthDate?.substring(0, 10) || ''}
             onChange={(e) => setEditUser((u) => u && { ...u, birthDate: e.target.value })}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={editUser?.isAdmin || false}
+                onChange={(e) => setEditUser((u) => u && { ...u, isAdmin: e.target.checked })}
+              />
+            }
+            label="É administrador?"
           />
         </DialogContent>
         <DialogActions>

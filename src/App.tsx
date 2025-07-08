@@ -14,6 +14,9 @@ import FavoritesPage from './pages/FavoritesPage';
 import InboxPage from './pages/InboxPage';
 import { useEffect } from 'react';
 import { useUser } from './context/UserContext';
+import Footer from './components/Footer';
+import MyMessagesPage from './pages/MyMessagesPage';
+import UserInboxPage from './pages/UserInboxPage';
 
 
 
@@ -33,7 +36,7 @@ function App() {
       }
     }
   }, []);
-  
+
   return (
     <>
       <Navbar />
@@ -55,6 +58,32 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/inbox"
+          element={
+            <PrivateRoute>
+              <InboxPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/my-messages"
+          element={
+            <PrivateRoute>
+              <UserInboxPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/my-messages"
+          element={
+            <PrivateRoute>
+              <MyMessagesPage />
+            </PrivateRoute>
+          }
+        />
+
+
         <Route
           path="/add-flat"
           element={
@@ -86,13 +115,16 @@ function App() {
             <PrivateRoute requireAdmin={true}>
               <AdminPage />
             </PrivateRoute>
-            </>
+          </>
           }
         />
 
       </Routes>
+      <Footer />
     </>
   );
 }
+
+
 
 export default App;

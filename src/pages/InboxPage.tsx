@@ -22,6 +22,7 @@ type Message = {
   content: string;
   createdAt: string;
   senderId: {
+    _id: string;
     firstName: string;
     lastName: string;
     email: string;
@@ -36,48 +37,63 @@ const InboxPage = () => {
   const [flats, setFlats] = useState<Flat[]>([]);
   const [messagesByFlat, setMessagesByFlat] = useState<Record<string, Message[]>>({});
   const [replyByFlat, setReplyByFlat] = useState<Record<string, string>>({});
-  const [pageByFlat, setPageByFlat] = useState<Record<string, number>>({});
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    const fetchFlatsAndMessages = async () => {
-      const res = await api.get('/flats');
-      const userFlats = user?.isAdmin
-        ? res.data
-        : res.data.filter((f: Flat) => f.ownerId._id === user?._id);
-      setFlats(userFlats);
-
-      for (const flat of userFlats) {
-        await loadMessages(flat._id, 1);
+    const fetchFlats = async () => {
+      try {
+        const res = await api.get('/flats');
+        setFlats(res.data);
+      } catch (err) {
+        console.error('Erro ao carregar flats:', err);
       }
     };
 
-    fetchFlatsAndMessages();
+    fetchFlats();
+  }, []);
 
+  useEffect(() => {
+    if (!user || flats.length === 0) return;
+
+    flats.forEach(async (flat) => {
+      try {
+        const res = await api.get(`/users/${flat._id}/conversation`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setMessagesByFlat((prev) => ({
+          ...prev,
+          [flat._id]: res.data,
+        }));
+      } catch (err) {
+        // apenas ignora se o user não tiver acesso à conversa
+      }
+    });
+  }, [user, flats]);
+
+  useEffect(() => {
     socket.on('nova-mensagem', (data) => {
-      if (data && flats.find(f => f._id === data.flatId)) {
-        loadMessages(data.flatId, 1, true); // refresh page 1
+      if (data?.flatId) {
+        loadConversation(data.flatId);
       }
     });
 
     return () => {
       socket.off('nova-mensagem');
     };
-  }, [user]);
+  }, []);
 
-  const loadMessages = async (flatId: string, page: number, reset = false) => {
-    const res = await api.get(`/flats/${flatId}/messages?page=${page}&limit=5`);
-    const newMessages = res.data;
-
-    setMessagesByFlat((prev) => ({
-      ...prev,
-      [flatId]: reset ? newMessages : [...(prev[flatId] || []), ...newMessages],
-    }));
-
-    setPageByFlat((prev) => ({
-      ...prev,
-      [flatId]: page,
-    }));
+  const loadConversation = async (flatId: string) => {
+    try {
+      const res = await api.get(`/users/${flatId}/conversation`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMessagesByFlat((prev) => ({
+        ...prev,
+        [flatId]: res.data,
+      }));
+    } catch (err) {
+      console.error('Erro ao carregar conversa:', err);
+    }
   };
 
   const handleReplyChange = (flatId: string, text: string) => {
@@ -88,56 +104,53 @@ const InboxPage = () => {
     const msg = replyByFlat[flatId]?.trim();
     if (!msg) return;
 
-    await api.post(`/flats/${flatId}/messages`, { content: msg }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    setReplyByFlat((prev) => ({ ...prev, [flatId]: '' }));
-    loadMessages(flatId, 1, true); // recarrega
-  };
-
-  const handleLoadMore = (flatId: string) => {
-    const nextPage = (pageByFlat[flatId] || 1) + 1;
-    loadMessages(flatId, nextPage);
-  };
-
-  const markAsRead = async (flatId: string) => {
-    await api.patch(`/flats/${flatId}/messages/read`);
+    try {
+      await api.post(
+        `/flats/${flatId}/messages`,
+        { content: msg },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setReplyByFlat((prev) => ({ ...prev, [flatId]: '' }));
+      loadConversation(flatId);
+    } catch (err) {
+      console.error('Erro ao enviar mensagem:', err);
+    }
   };
 
   return (
     <Container maxWidth="md" sx={{ paddingY: 4 }}>
       <Typography variant="h5" align="center" gutterBottom color={theme.colors.text}>
-        📬 Inbox de Mensagens
+        💬 Conversas
       </Typography>
 
       {flats.length === 0 ? (
         <Typography align="center" color={theme.colors.subtext} fontStyle="italic">
-          Não tens flats registados ou ainda não recebeste mensagens.
+          Não há conversas disponíveis.
         </Typography>
       ) : (
-        flats.map((flat) => (
-          <Accordion
-            key={flat._id}
-            onChange={(_, expanded) => {
-              if (expanded) markAsRead(flat._id);
-            }}
-            sx={{ marginBottom: 2, background: theme.colors.card }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="subtitle1" color={theme.colors.text}>
-                {flat.city} – {flat.streetName} {flat.streetNumber}
-              </Typography>
-            </AccordionSummary>
+        flats.map((flat) => {
+          const messages = messagesByFlat[flat._id];
+          if (!messages) return null;
 
-            <AccordionDetails>
-              {messagesByFlat[flat._id]?.length > 0 ? (
-                <>
-                  {messagesByFlat[flat._id].map((msg) => (
+          return (
+            <Accordion
+              key={flat._id}
+              sx={{ marginBottom: 2, background: theme.colors.card }}
+            >
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography variant="subtitle1" color={theme.colors.text}>
+                  {flat.city} – {flat.streetName} {flat.streetNumber}
+                </Typography>
+              </AccordionSummary>
+
+              <AccordionDetails>
+                {messages.length > 0 ? (
+                  messages.map((msg) => (
                     <Box
                       key={msg._id}
                       sx={{
-                        backgroundColor: msg.isRead ? '#f4f4f4' : '#d2eaf2',
+                        backgroundColor:
+                          msg.senderId._id === user?._id ? '#e0f7fa' : '#f0f0f0',
                         borderRadius: 2,
                         padding: 2,
                         marginBottom: 2,
@@ -151,46 +164,38 @@ const InboxPage = () => {
                         {new Date(msg.createdAt).toLocaleString()}
                       </Typography>
                     </Box>
-                  ))}
+                  ))
+                ) : (
+                  <Typography color={theme.colors.subtext} fontStyle="italic">
+                    Sem mensagens ainda.
+                  </Typography>
+                )}
 
+                <Divider sx={{ marginY: 2 }} />
+
+                <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
+                  <TextField
+                    label="Escrever resposta"
+                    multiline
+                    minRows={2}
+                    fullWidth
+                    value={replyByFlat[flat._id] || ''}
+                    onChange={(e) => handleReplyChange(flat._id, e.target.value)}
+                  />
                   <Button
-                    variant="outlined"
-                    onClick={() => handleLoadMore(flat._id)}
-                    sx={{ marginY: 1 }}
+                    variant="contained"
+                    color="primary"
+                    sx={{ alignSelf: 'flex-end' }}
+                    onClick={() => handleSendReply(flat._id)}
+                    disabled={!replyByFlat[flat._id]?.trim()}
                   >
-                    Ver mais
+                    Enviar
                   </Button>
-                </>
-              ) : (
-                <Typography color={theme.colors.subtext} fontStyle="italic">
-                  Nenhuma mensagem para este flat.
-                </Typography>
-              )}
-
-              <Divider sx={{ marginY: 2 }} />
-
-              <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
-                <TextField
-                  label="Responder mensagem"
-                  multiline
-                  minRows={2}
-                  fullWidth
-                  value={replyByFlat[flat._id] || ''}
-                  onChange={(e) => handleReplyChange(flat._id, e.target.value)}
-                />
-                <Button
-                  variant="contained"
-                  color="primary"
-                  sx={{ alignSelf: 'flex-end' }}
-                  onClick={() => handleSendReply(flat._id)}
-                  disabled={!replyByFlat[flat._id]?.trim()}
-                >
-                  Enviar
-                </Button>
-              </Box>
-            </AccordionDetails>
-          </Accordion>
-        ))
+                </Box>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })
       )}
     </Container>
   );

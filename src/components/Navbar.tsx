@@ -50,6 +50,7 @@ const Navbar = () => {
     { label: 'Profile', to: '/profile' },
     { label: 'Adicionar Flat', to: '/add-flat' },
     { label: '❤️ Favoritos', to: '/favorites' },
+    
     {
       label: (
         <Badge badgeContent={unreadCount} color="secondary">
@@ -60,7 +61,7 @@ const Navbar = () => {
       to: '/inbox',
     },
   ];
-console.log("🔐 Utilizador atual na Navbar:", user);
+  console.log("🔐 Utilizador atual na Navbar:", user);
 
   if (user?.isAdmin) {
     loggedInLinks.push({ label: 'Admin Panel', to: '/admin' });
@@ -68,23 +69,24 @@ console.log("🔐 Utilizador atual na Navbar:", user);
 
   const renderLinks = () =>
     [...commonLinks, ...(user ? loggedInLinks : loggedOutLinks)].map((link) =>
-      typeof link.label === 'string' ? (
-        <Button
-          key={link.to}
-          color="inherit"
-          component={Link}
-          to={link.to}
-          sx={{
-            textTransform: 'none',
-            color: theme.colors.card,
-            fontWeight: 500,
-          }}
-        >
-          {link.label}
-        </Button>
-      ) : (
-        <Box key={link.to}>{/* placeholder, handled in mobile drawer */}</Box>
-      )
+      <Button
+        key={link.to}
+        color="inherit"
+        component={Link}
+        to={link.to}
+        sx={{
+          textTransform: 'none',
+          color: theme.colors.card,
+          fontWeight: 500,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+        }}
+      >
+        {link.label}
+      </Button>
+
+
     );
 
   return (

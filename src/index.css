@@ -12,6 +12,21 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+/* Garante que a altura da página ocupe todo o ecrã */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* O App deve crescer para ocupar o espaço disponível */
+#root > * {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 
 a {
   font-weight: 500;
